@@ -7,7 +7,6 @@
 # Configuration
 DATA_DIR="$HOME/.persistent-playlist-manager"
 ALBUMS_DIR="$DATA_DIR/playlists"
-SONGS_DIR="$DATA_DIR/songs"
 
 # Colors for output
 RED='\033[0;31m'
@@ -22,11 +21,6 @@ init_directories() {
     
     if [ ! -d "$ALBUMS_DIR" ]; then
         mkdir -p "$ALBUMS_DIR"
-        created=true
-    fi
-    
-    if [ ! -d "$SONGS_DIR" ]; then
-        mkdir -p "$SONGS_DIR"
         created=true
     fi
     
@@ -58,14 +52,14 @@ show_usage() {
 # Check if playlist exists
 playlist_exists() {
     local playlist_name="$1"
-    [ -f "$ALBUMS_DIR/$playlist_name.m3u8" ]
+    [ -d "$ALBUMS_DIR/$playlist_name" ] && [ -f "$ALBUMS_DIR/$playlist_name/$playlist_name.m3u8" ]
 }
 
 # Check if song exists in playlist
 song_in_playlist() {
     local playlist_name="$1"
     local song_name="$2"
-    local playlist_file="$ALBUMS_DIR/$playlist_name.m3u8"
+    local playlist_file="$ALBUMS_DIR/$playlist_name/$playlist_name.m3u8"
     
     if [ -f "$playlist_file" ]; then
         grep -q "^#EXTINF:.*$song_name$" "$playlist_file" 2>/dev/null
@@ -117,12 +111,15 @@ list_playlists() {
     fi
     
     local count=0
-    for playlist_file in "$ALBUMS_DIR"/*.m3u8; do
-        if [ -f "$playlist_file" ]; then
-            local playlist_name=$(basename "$playlist_file" .m3u8)
-            local song_count=$(grep -c "^#EXTINF:" "$playlist_file" 2>/dev/null)
-            echo -e "  ${GREEN}$playlist_name${NC} ($song_count songs)"
-            ((count++))
+    for playlist_dir in "$ALBUMS_DIR"/*/; do
+        if [ -d "$playlist_dir" ]; then
+            local playlist_name=$(basename "$playlist_dir")
+            local playlist_file="$playlist_dir$playlist_name.m3u8"
+            if [ -f "$playlist_file" ]; then
+                local song_count=$(grep -c "^#EXTINF:" "$playlist_file" 2>/dev/null)
+                echo -e "  ${GREEN}$playlist_name${NC} ($song_count songs)"
+                ((count++))
+            fi
         fi
     done
     
@@ -141,7 +138,7 @@ list_songs() {
         exit 1
     fi
     
-    local playlist_file="$ALBUMS_DIR/$playlist_name.m3u8"
+    local playlist_file="$ALBUMS_DIR/$playlist_name/$playlist_name.m3u8"
     
     if [ ! -f "$playlist_file" ]; then
         echo -e "${RED}Error:${NC} Playlist '$playlist_name' not found"
@@ -182,8 +179,12 @@ create_playlist() {
         return
     fi
     
+    # Create playlist directory
+    local playlist_dir="$ALBUMS_DIR/$playlist_name"
+    mkdir -p "$playlist_dir"
+    
     # Create m3u8 file with header
-    cat > "$ALBUMS_DIR/$playlist_name.m3u8" << EOF
+    cat > "$playlist_dir/$playlist_name.m3u8" << EOF
 #EXTM3U
 # Created by Persistent Playlist Manager
 # Playlist: $playlist_name
@@ -216,7 +217,8 @@ add_songs() {
         create_playlist "$playlist_name"
     fi
     
-    local playlist_file="$ALBUMS_DIR/$playlist_name.m3u8"
+    local playlist_dir="$ALBUMS_DIR/$playlist_name"
+    local playlist_file="$playlist_dir/$playlist_name.m3u8"
     local added_count=0
     local skipped_count=0
     
@@ -235,8 +237,8 @@ add_songs() {
             continue
         fi
         
-        # Create hard link in songs directory
-        local link_path="$SONGS_DIR/$song_name"
+        # Create hard link in playlist directory
+        local link_path="$playlist_dir/$song_name"
         
         # Handle duplicate filenames
         local counter=1
@@ -245,7 +247,7 @@ add_songs() {
             local name_without_ext="${original_name%.*}"
             local extension="${original_name##*.}"
             song_name="${name_without_ext}_$counter.$extension"
-            link_path="$SONGS_DIR/$song_name"
+            link_path="$playlist_dir/$song_name"
             ((counter++))
         done
         
@@ -281,7 +283,8 @@ remove_songs() {
         exit 1
     fi
     
-    local playlist_file="$ALBUMS_DIR/$playlist_name.m3u8"
+    local playlist_dir="$ALBUMS_DIR/$playlist_name"
+    local playlist_file="$playlist_dir/$playlist_name.m3u8"
     
     if [ ! -f "$playlist_file" ]; then
         echo -e "${RED}Error:${NC} Playlist '$playlist_name' not found"
@@ -349,7 +352,8 @@ delete_playlist() {
         exit 1
     fi
     
-    local playlist_file="$ALBUMS_DIR/$playlist_name.m3u8"
+    local playlist_dir="$ALBUMS_DIR/$playlist_name"
+    local playlist_file="$playlist_dir/$playlist_name.m3u8"
     
     # Remove hard links for songs in this playlist
     while IFS= read -r line; do
@@ -358,8 +362,8 @@ delete_playlist() {
         fi
     done < "$playlist_file"
     
-    # Remove the playlist file
-    rm -f "$playlist_file"
+    # Remove the entire playlist directory
+    rm -rf "$playlist_dir"
     
     echo -e "${GREEN}✓${NC} Playlist '$playlist_name' deleted successfully"
 }
