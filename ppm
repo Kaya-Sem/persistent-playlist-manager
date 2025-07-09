@@ -37,7 +37,7 @@ show_usage() {
     echo "Commands:"
     echo "  list                           - List all playlists"
     echo "  tracks <playlist_name>         - List songs in a playlist"
-    echo "  add-songs <playlist_name> <song1> [song2] ... - Add songs to a playlist"
+    echo "  add <playlist_name> [song1] [song2] ... - Add songs to a playlist"
     echo "  remove-songs <playlist_name> <song1> [song2] ... - Remove songs from a playlist"
     echo "  create [playlist1] [playlist2] ... - Create new playlists"
     echo "  delete-playlist <playlist_name> - Delete a playlist"
@@ -45,10 +45,11 @@ show_usage() {
     echo "Examples:"
     echo "  $(basename "$0") list"
     echo "  $(basename "$0") tracks 'My Favorites'"
-    echo "  $(basename "$0") add-songs 'Rock Hits' /path/to/song1.flac /path/to/song2.mp3"
+    echo "  $(basename "$0") add 'Rock Hits' /path/to/song1.flac /path/to/song2.mp3"
     echo "  $(basename "$0") remove-songs 'Rock Hits' song1.mp3 song2.mp3"
     echo "  $(basename "$0") create 'Rock Hits' 'My Favorites'"
     echo "  echo 'Rock Hits' | $(basename "$0") create"
+    echo "  echo 'song1.mp3' | $(basename "$0") add 'Rock Hits'"
 }
 
 # Check if playlist exists
@@ -234,13 +235,30 @@ add_songs() {
     
     if [ -z "$playlist_name" ]; then
         echo -e "${RED}Error:${NC} Playlist name is required"
-        echo "Usage: $(basename "$0") add-songs <playlist_name> <song1> [song2] ..."
+        echo "Usage: $(basename "$0") add <playlist_name> [song1] [song2] ..."
+        echo "       echo 'song1.mp3' | $(basename "$0") add <playlist_name>"
         exit 1
     fi
     
-    if [ $# -eq 0 ]; then
-        echo -e "${RED}Error:${NC} At least one song is required"
-        echo "Usage: $(basename "$0") add-songs <playlist_name> <song1> [song2] ..."
+    local songs=()
+    
+    # If arguments provided, use them
+    if [ $# -gt 0 ]; then
+        songs=("$@")
+    else
+        # Read from STDIN
+        while IFS= read -r line; do
+            # Skip empty lines and comments
+            if [[ -n "$line" && ! "$line" =~ ^[[:space:]]*# ]]; then
+                songs+=("$line")
+            fi
+        done
+    fi
+    
+    if [ ${#songs[@]} -eq 0 ]; then
+        echo -e "${RED}Error:${NC} No songs provided"
+        echo "Usage: $(basename "$0") add <playlist_name> [song1] [song2] ..."
+        echo "       echo 'song1.mp3' | $(basename "$0") add <playlist_name>"
         exit 1
     fi
     
@@ -254,7 +272,14 @@ add_songs() {
     local added_count=0
     local skipped_count=0
     
-    for song_path in "$@"; do
+    for song_path in "${songs[@]}"; do
+        # Trim whitespace
+        song_path=$(echo "$song_path" | xargs)
+        
+        if [ -z "$song_path" ]; then
+            continue
+        fi
+        
         if ! validate_song_file "$song_path"; then
             continue
         fi
@@ -412,7 +437,7 @@ main() {
         "tracks")
             list_songs "$2"
             ;;
-        "add-songs")
+        "add")
             shift
             add_songs "$@"
             ;;
