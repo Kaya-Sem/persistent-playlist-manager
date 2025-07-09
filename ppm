@@ -1,0 +1,405 @@
+#!/bin/bash
+
+# Persistent Playlist Manager - M3U8 Playlist Manager
+# Version 1.0
+# This script manages persistent playlists using m3u8 files and hard links
+
+# Configuration
+DATA_DIR="$HOME/.persistent-playlist-manager"
+ALBUMS_DIR="$DATA_DIR/playlists"
+SONGS_DIR="$DATA_DIR/songs"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Initialize the data directory structure
+init_directories() {
+    local created=false
+    
+    if [ ! -d "$ALBUMS_DIR" ]; then
+        mkdir -p "$ALBUMS_DIR"
+        created=true
+    fi
+    
+    if [ ! -d "$SONGS_DIR" ]; then
+        mkdir -p "$SONGS_DIR"
+        created=true
+    fi
+    
+    if [ "$created" = true ]; then
+        echo -e "${GREEN}✓${NC} Persistent playlist manager directories initialized"
+    fi
+}
+
+# Display usage information
+show_usage() {
+    echo -e "${BLUE}Persistent Playlist Manager${NC}"
+    echo "Usage: $(basename "$0") <command> [options]"
+    echo ""
+    echo "Commands:"
+    echo "  list-playlists                 - List all playlists"
+    echo "  list-songs <playlist_name>     - List songs in a playlist"
+    echo "  add-songs <playlist_name> <song1> [song2] ... - Add songs to a playlist"
+    echo "  remove-songs <playlist_name> <song1> [song2] ... - Remove songs from a playlist"
+    echo "  create-playlist <playlist_name> - Create a new playlist"
+    echo "  delete-playlist <playlist_name> - Delete a playlist"
+    echo ""
+    echo "Examples:"
+    echo "  $(basename "$0") list-playlists"
+    echo "  $(basename "$0") list-songs 'My Favorites'"
+    echo "  $(basename "$0") add-songs 'Rock Hits' /path/to/song1.flac /path/to/song2.mp3"
+    echo "  $(basename "$0") remove-songs 'Rock Hits' song1.mp3 song2.mp3"
+}
+
+# Check if playlist exists
+playlist_exists() {
+    local playlist_name="$1"
+    [ -f "$ALBUMS_DIR/$playlist_name.m3u8" ]
+}
+
+# Check if song exists in playlist
+song_in_playlist() {
+    local playlist_name="$1"
+    local song_name="$2"
+    local playlist_file="$ALBUMS_DIR/$playlist_name.m3u8"
+    
+    if [ -f "$playlist_file" ]; then
+        grep -q "^#EXTINF:.*$song_name$" "$playlist_file" 2>/dev/null
+    else
+        return 1
+    fi
+}
+
+# Get absolute path of a file
+get_absolute_path() {
+    local file_path="$1"
+    if [[ "$file_path" == /* ]]; then
+        echo "$file_path"
+    else
+        echo "$(pwd)/$file_path"
+    fi
+}
+
+# Validate song file
+validate_song_file() {
+    local song_path="$1"
+    local abs_path=$(get_absolute_path "$song_path")
+    
+    if [ ! -f "$abs_path" ]; then
+        echo -e "${RED}✗${NC} Song file not found: $song_path"
+        return 1
+    fi
+    
+    # Check if it's an audio file (basic check)
+    local extension="${abs_path##*.}"
+    case "${extension,,}" in
+        mp3|m4a|flac|wav|ogg|aac|wma)
+            return 0
+            ;;
+        *)
+            echo -e "${YELLOW}⚠${NC} Warning: $song_path may not be an audio file"
+            return 0
+            ;;
+    esac
+}
+
+# List all playlists
+list_playlists() {
+    echo -e "${BLUE}Available Playlists:${NC}"
+    
+    if [ ! -d "$ALBUMS_DIR" ] || [ -z "$(ls -A "$ALBUMS_DIR" 2>/dev/null)" ]; then
+        echo "No playlists found."
+        return
+    fi
+    
+    local count=0
+    for playlist_file in "$ALBUMS_DIR"/*.m3u8; do
+        if [ -f "$playlist_file" ]; then
+            local playlist_name=$(basename "$playlist_file" .m3u8)
+            local song_count=$(grep -c "^#EXTINF:" "$playlist_file" 2>/dev/null)
+            echo -e "  ${GREEN}$playlist_name${NC} ($song_count songs)"
+            ((count++))
+        fi
+    done
+    
+    if [ $count -eq 0 ]; then
+        echo "No playlists found."
+    fi
+}
+
+# List songs in an album
+list_songs() {
+    local album_name="$1"
+    
+    if [ -z "$album_name" ]; then
+        echo -e "${RED}Error:${NC} Album name is required"
+        echo "Usage: $(basename "$0") list-songs <album_name>"
+        exit 1
+    fi
+    
+    local album_file="$ALBUMS_DIR/$album_name.m3u8"
+    
+    if [ ! -f "$album_file" ]; then
+        echo -e "${RED}Error:${NC} Album '$album_name' not found"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}Songs in album '$album_name':${NC}"
+    
+    local count=0
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^#EXTINF: ]]; then
+            # Extract song name from EXTINF line
+            local song_name=$(echo "$line" | sed 's/^#EXTINF:.*,//')
+            echo -e "  ${GREEN}$song_name${NC}"
+            ((count++))
+        fi
+    done < "$album_file"
+    
+    if [ $count -eq 0 ]; then
+        echo "No songs in this album."
+    else
+        echo -e "${BLUE}Total: $count songs${NC}"
+    fi
+}
+
+# Create a new album
+create_album() {
+    local album_name="$1"
+    
+    if [ -z "$album_name" ]; then
+        echo -e "${RED}Error:${NC} Album name is required"
+        echo "Usage: $0 create-album <album_name>"
+        exit 1
+    fi
+    
+    if album_exists "$album_name"; then
+        echo -e "${YELLOW}Warning:${NC} Album '$album_name' already exists"
+        return
+    fi
+    
+    # Create m3u8 file with header
+    cat > "$ALBUMS_DIR/$album_name.m3u8" << EOF
+#EXTM3U
+# Created by Album Manager
+# Album: $album_name
+# Created: $(date)
+
+EOF
+    
+    echo -e "${GREEN}✓${NC} Album '$album_name' created successfully"
+}
+
+# Add songs to an album
+add_songs() {
+    local album_name="$1"
+    shift
+    
+    if [ -z "$album_name" ]; then
+        echo -e "${RED}Error:${NC} Album name is required"
+        echo "Usage: $(basename "$0") add-songs <album_name> <song1> [song2] ..."
+        exit 1
+    fi
+    
+    if [ $# -eq 0 ]; then
+        echo -e "${RED}Error:${NC} At least one song is required"
+        echo "Usage: $(basename "$0") add-songs <album_name> <song1> [song2] ..."
+        exit 1
+    fi
+    
+    # Create album if it doesn't exist
+    if ! album_exists "$album_name"; then
+        create_album "$album_name"
+    fi
+    
+    local album_file="$ALBUMS_DIR/$album_name.m3u8"
+    local added_count=0
+    local skipped_count=0
+    
+    for song_path in "$@"; do
+        if ! validate_song_file "$song_path"; then
+            continue
+        fi
+        
+        local abs_path=$(get_absolute_path "$song_path")
+        local song_name=$(basename "$song_path")
+        
+        # Check if song is already in album
+        if song_in_album "$album_name" "$song_name"; then
+            echo -e "${YELLOW}⚠${NC} Song '$song_name' already in album '$album_name'"
+            ((skipped_count++))
+            continue
+        fi
+        
+        # Create hard link in songs directory
+        local link_path="$SONGS_DIR/$song_name"
+        
+        # Handle duplicate filenames
+        local counter=1
+        local original_name="$song_name"
+        while [ -f "$link_path" ]; do
+            local name_without_ext="${original_name%.*}"
+            local extension="${original_name##*.}"
+            song_name="${name_without_ext}_$counter.$extension"
+            link_path="$SONGS_DIR/$song_name"
+            ((counter++))
+        done
+        
+        # Create hard link
+        if ln "$abs_path" "$link_path" 2>/dev/null; then
+            # Add to m3u8 file
+            echo "#EXTINF:-1,$song_name" >> "$album_file"
+            echo "$link_path" >> "$album_file"
+            echo -e "${GREEN}✓${NC} Added '$song_name' to album '$album_name'"
+            ((added_count++))
+        else
+            echo -e "${RED}✗${NC} Failed to add '$song_name' to album '$album_name'"
+        fi
+    done
+    
+    echo -e "${BLUE}Summary:${NC} $added_count songs added, $skipped_count skipped"
+}
+
+# Remove songs from an album
+remove_songs() {
+    local album_name="$1"
+    shift
+    
+    if [ -z "$album_name" ]; then
+        echo -e "${RED}Error:${NC} Album name is required"
+        echo "Usage: $(basename "$0") remove-songs <album_name> <song1> [song2] ..."
+        exit 1
+    fi
+    
+    if [ $# -eq 0 ]; then
+        echo -e "${RED}Error:${NC} At least one song is required"
+        echo "Usage: $(basename "$0") remove-songs <album_name> <song1> [song2] ..."
+        exit 1
+    fi
+    
+    local album_file="$ALBUMS_DIR/$album_name.m3u8"
+    
+    if [ ! -f "$album_file" ]; then
+        echo -e "${RED}Error:${NC} Album '$album_name' not found"
+        exit 1
+    fi
+    
+    local removed_count=0
+    local not_found_count=0
+    
+    for song_name in "$@"; do
+        if song_in_album "$album_name" "$song_name"; then
+            # Create temporary file without the song
+            local temp_file=$(mktemp)
+            local in_song_block=false
+            local skip_next=false
+            
+            while IFS= read -r line; do
+                if [[ "$line" =~ ^#EXTINF: ]]; then
+                    # Check if this is the song we want to remove
+                    local current_song=$(echo "$line" | sed 's/^#EXTINF:.*,//')
+                    if [ "$current_song" = "$song_name" ]; then
+                        skip_next=true
+                        # Remove hard link if it exists
+                        local next_line=$(head -n 1)
+                        if [ -f "$next_line" ]; then
+                            rm -f "$next_line"
+                        fi
+                        continue
+                    fi
+                    in_song_block=true
+                    echo "$line" >> "$temp_file"
+                elif [ "$skip_next" = true ]; then
+                    skip_next=false
+                    continue
+                else
+                    echo "$line" >> "$temp_file"
+                fi
+            done < "$album_file"
+            
+            # Replace original file with temp file
+            mv "$temp_file" "$album_file"
+            echo -e "${GREEN}✓${NC} Removed '$song_name' from album '$album_name'"
+            ((removed_count++))
+        else
+            echo -e "${YELLOW}⚠${NC} Song '$song_name' not found in album '$album_name'"
+            ((not_found_count++))
+        fi
+    done
+    
+    echo -e "${BLUE}Summary:${NC} $removed_count songs removed, $not_found_count not found"
+}
+
+# Delete an album
+delete_album() {
+    local album_name="$1"
+    
+    if [ -z "$album_name" ]; then
+        echo -e "${RED}Error:${NC} Album name is required"
+        echo "Usage: $(basename "$0") delete-album <album_name>"
+        exit 1
+    fi
+    
+    if ! album_exists "$album_name"; then
+        echo -e "${RED}Error:${NC} Album '$album_name' not found"
+        exit 1
+    fi
+    
+    local album_file="$ALBUMS_DIR/$album_name.m3u8"
+    
+    # Remove hard links for songs in this album
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^[^#] ]] && [ -f "$line" ]; then
+            rm -f "$line"
+        fi
+    done < "$album_file"
+    
+    # Remove the album file
+    rm -f "$album_file"
+    
+    echo -e "${GREEN}✓${NC} Album '$album_name' deleted successfully"
+}
+
+# Main script logic
+main() {
+    # Initialize directories
+    init_directories
+    
+    case "${1:-}" in
+        "list-albums")
+            list_albums
+            ;;
+        "list-songs")
+            list_songs "$2"
+            ;;
+        "add-songs")
+            shift
+            add_songs "$@"
+            ;;
+        "remove-songs")
+            shift
+            remove_songs "$@"
+            ;;
+        "create-album")
+            create_album "$2"
+            ;;
+        "delete-album")
+            delete_album "$2"
+            ;;
+        "help"|"-h"|"--help"|"")
+            show_usage
+            ;;
+        *)
+            echo -e "${RED}Error:${NC} Unknown command '$1'"
+            echo "Use '$(basename "$0") help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@" 
