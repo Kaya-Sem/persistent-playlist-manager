@@ -131,24 +131,24 @@ list_playlists() {
     fi
 }
 
-# List songs in an album
+# List songs in a playlist
 list_songs() {
-    local album_name="$1"
+    local playlist_name="$1"
     
-    if [ -z "$album_name" ]; then
-        echo -e "${RED}Error:${NC} Album name is required"
-        echo "Usage: $(basename "$0") list-songs <album_name>"
+    if [ -z "$playlist_name" ]; then
+        echo -e "${RED}Error:${NC} Playlist name is required"
+        echo "Usage: $(basename "$0") list-songs <playlist_name>"
         exit 1
     fi
     
-    local album_file="$ALBUMS_DIR/$album_name.m3u8"
+    local playlist_file="$ALBUMS_DIR/$playlist_name.m3u8"
     
-    if [ ! -f "$album_file" ]; then
-        echo -e "${RED}Error:${NC} Album '$album_name' not found"
+    if [ ! -f "$playlist_file" ]; then
+        echo -e "${RED}Error:${NC} Playlist '$playlist_name' not found"
         exit 1
     fi
     
-    echo -e "${BLUE}Songs in album '$album_name':${NC}"
+    echo -e "${BLUE}Songs in playlist '$playlist_name':${NC}"
     
     local count=0
     while IFS= read -r line; do
@@ -158,40 +158,40 @@ list_songs() {
             echo -e "  ${GREEN}$song_name${NC}"
             ((count++))
         fi
-    done < "$album_file"
+    done < "$playlist_file"
     
     if [ $count -eq 0 ]; then
-        echo "No songs in this album."
+        echo "No songs in this playlist."
     else
         echo -e "${BLUE}Total: $count songs${NC}"
     fi
 }
 
-# Create a new album
-create_album() {
-    local album_name="$1"
+# Create a new playlist
+create_playlist() {
+    local playlist_name="$1"
     
-    if [ -z "$album_name" ]; then
-        echo -e "${RED}Error:${NC} Album name is required"
-        echo "Usage: $0 create-album <album_name>"
+    if [ -z "$playlist_name" ]; then
+        echo -e "${RED}Error:${NC} Playlist name is required"
+        echo "Usage: $(basename "$0") create-playlist <playlist_name>"
         exit 1
     fi
     
-    if album_exists "$album_name"; then
-        echo -e "${YELLOW}Warning:${NC} Album '$album_name' already exists"
+    if playlist_exists "$playlist_name"; then
+        echo -e "${YELLOW}Warning:${NC} Playlist '$playlist_name' already exists"
         return
     fi
     
     # Create m3u8 file with header
-    cat > "$ALBUMS_DIR/$album_name.m3u8" << EOF
+    cat > "$ALBUMS_DIR/$playlist_name.m3u8" << EOF
 #EXTM3U
-# Created by Album Manager
-# Album: $album_name
+# Created by Persistent Playlist Manager
+# Playlist: $playlist_name
 # Created: $(date)
 
 EOF
     
-    echo -e "${GREEN}✓${NC} Album '$album_name' created successfully"
+    echo -e "${GREEN}✓${NC} Playlist '$playlist_name' created successfully"
 }
 
 # Add songs to an album
