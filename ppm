@@ -194,29 +194,29 @@ EOF
     echo -e "${GREEN}✓${NC} Playlist '$playlist_name' created successfully"
 }
 
-# Add songs to an album
+# Add songs to a playlist
 add_songs() {
-    local album_name="$1"
+    local playlist_name="$1"
     shift
     
-    if [ -z "$album_name" ]; then
-        echo -e "${RED}Error:${NC} Album name is required"
-        echo "Usage: $(basename "$0") add-songs <album_name> <song1> [song2] ..."
+    if [ -z "$playlist_name" ]; then
+        echo -e "${RED}Error:${NC} Playlist name is required"
+        echo "Usage: $(basename "$0") add-songs <playlist_name> <song1> [song2] ..."
         exit 1
     fi
     
     if [ $# -eq 0 ]; then
         echo -e "${RED}Error:${NC} At least one song is required"
-        echo "Usage: $(basename "$0") add-songs <album_name> <song1> [song2] ..."
+        echo "Usage: $(basename "$0") add-songs <playlist_name> <song1> [song2] ..."
         exit 1
     fi
     
-    # Create album if it doesn't exist
-    if ! album_exists "$album_name"; then
-        create_album "$album_name"
+    # Create playlist if it doesn't exist
+    if ! playlist_exists "$playlist_name"; then
+        create_playlist "$playlist_name"
     fi
     
-    local album_file="$ALBUMS_DIR/$album_name.m3u8"
+    local playlist_file="$ALBUMS_DIR/$playlist_name.m3u8"
     local added_count=0
     local skipped_count=0
     
@@ -228,9 +228,9 @@ add_songs() {
         local abs_path=$(get_absolute_path "$song_path")
         local song_name=$(basename "$song_path")
         
-        # Check if song is already in album
-        if song_in_album "$album_name" "$song_name"; then
-            echo -e "${YELLOW}⚠${NC} Song '$song_name' already in album '$album_name'"
+        # Check if song is already in playlist
+        if song_in_playlist "$playlist_name" "$song_name"; then
+            echo -e "${YELLOW}⚠${NC} Song '$song_name' already in playlist '$playlist_name'"
             ((skipped_count++))
             continue
         fi
@@ -252,39 +252,39 @@ add_songs() {
         # Create hard link
         if ln "$abs_path" "$link_path" 2>/dev/null; then
             # Add to m3u8 file
-            echo "#EXTINF:-1,$song_name" >> "$album_file"
-            echo "$link_path" >> "$album_file"
-            echo -e "${GREEN}✓${NC} Added '$song_name' to album '$album_name'"
+            echo "#EXTINF:-1,$song_name" >> "$playlist_file"
+            echo "$link_path" >> "$playlist_file"
+            echo -e "${GREEN}✓${NC} Added '$song_name' to playlist '$playlist_name'"
             ((added_count++))
         else
-            echo -e "${RED}✗${NC} Failed to add '$song_name' to album '$album_name'"
+            echo -e "${RED}✗${NC} Failed to add '$song_name' to playlist '$playlist_name'"
         fi
     done
     
     echo -e "${BLUE}Summary:${NC} $added_count songs added, $skipped_count skipped"
 }
 
-# Remove songs from an album
+# Remove songs from a playlist
 remove_songs() {
-    local album_name="$1"
+    local playlist_name="$1"
     shift
     
-    if [ -z "$album_name" ]; then
-        echo -e "${RED}Error:${NC} Album name is required"
-        echo "Usage: $(basename "$0") remove-songs <album_name> <song1> [song2] ..."
+    if [ -z "$playlist_name" ]; then
+        echo -e "${RED}Error:${NC} Playlist name is required"
+        echo "Usage: $(basename "$0") remove-songs <playlist_name> <song1> [song2] ..."
         exit 1
     fi
     
     if [ $# -eq 0 ]; then
         echo -e "${RED}Error:${NC} At least one song is required"
-        echo "Usage: $(basename "$0") remove-songs <album_name> <song1> [song2] ..."
+        echo "Usage: $(basename "$0") remove-songs <playlist_name> <song1> [song2] ..."
         exit 1
     fi
     
-    local album_file="$ALBUMS_DIR/$album_name.m3u8"
+    local playlist_file="$ALBUMS_DIR/$playlist_name.m3u8"
     
-    if [ ! -f "$album_file" ]; then
-        echo -e "${RED}Error:${NC} Album '$album_name' not found"
+    if [ ! -f "$playlist_file" ]; then
+        echo -e "${RED}Error:${NC} Playlist '$playlist_name' not found"
         exit 1
     fi
     
@@ -292,7 +292,7 @@ remove_songs() {
     local not_found_count=0
     
     for song_name in "$@"; do
-        if song_in_album "$album_name" "$song_name"; then
+        if song_in_playlist "$playlist_name" "$song_name"; then
             # Create temporary file without the song
             local temp_file=$(mktemp)
             local in_song_block=false
@@ -319,14 +319,14 @@ remove_songs() {
                 else
                     echo "$line" >> "$temp_file"
                 fi
-            done < "$album_file"
+            done < "$playlist_file"
             
             # Replace original file with temp file
-            mv "$temp_file" "$album_file"
-            echo -e "${GREEN}✓${NC} Removed '$song_name' from album '$album_name'"
+            mv "$temp_file" "$playlist_file"
+            echo -e "${GREEN}✓${NC} Removed '$song_name' from playlist '$playlist_name'"
             ((removed_count++))
         else
-            echo -e "${YELLOW}⚠${NC} Song '$song_name' not found in album '$album_name'"
+            echo -e "${YELLOW}⚠${NC} Song '$song_name' not found in playlist '$playlist_name'"
             ((not_found_count++))
         fi
     done
@@ -334,34 +334,34 @@ remove_songs() {
     echo -e "${BLUE}Summary:${NC} $removed_count songs removed, $not_found_count not found"
 }
 
-# Delete an album
-delete_album() {
-    local album_name="$1"
+# Delete a playlist
+delete_playlist() {
+    local playlist_name="$1"
     
-    if [ -z "$album_name" ]; then
-        echo -e "${RED}Error:${NC} Album name is required"
-        echo "Usage: $(basename "$0") delete-album <album_name>"
+    if [ -z "$playlist_name" ]; then
+        echo -e "${RED}Error:${NC} Playlist name is required"
+        echo "Usage: $(basename "$0") delete-playlist <playlist_name>"
         exit 1
     fi
     
-    if ! album_exists "$album_name"; then
-        echo -e "${RED}Error:${NC} Album '$album_name' not found"
+    if ! playlist_exists "$playlist_name"; then
+        echo -e "${RED}Error:${NC} Playlist '$playlist_name' not found"
         exit 1
     fi
     
-    local album_file="$ALBUMS_DIR/$album_name.m3u8"
+    local playlist_file="$ALBUMS_DIR/$playlist_name.m3u8"
     
-    # Remove hard links for songs in this album
+    # Remove hard links for songs in this playlist
     while IFS= read -r line; do
         if [[ "$line" =~ ^[^#] ]] && [ -f "$line" ]; then
             rm -f "$line"
         fi
-    done < "$album_file"
+    done < "$playlist_file"
     
-    # Remove the album file
-    rm -f "$album_file"
+    # Remove the playlist file
+    rm -f "$playlist_file"
     
-    echo -e "${GREEN}✓${NC} Album '$album_name' deleted successfully"
+    echo -e "${GREEN}✓${NC} Playlist '$playlist_name' deleted successfully"
 }
 
 # Main script logic
@@ -370,8 +370,8 @@ main() {
     init_directories
     
     case "${1:-}" in
-        "list-albums")
-            list_albums
+        "list-playlists")
+            list_playlists
             ;;
         "list-songs")
             list_songs "$2"
@@ -384,11 +384,11 @@ main() {
             shift
             remove_songs "$@"
             ;;
-        "create-album")
-            create_album "$2"
+        "create-playlist")
+            create_playlist "$2"
             ;;
-        "delete-album")
-            delete_album "$2"
+        "delete-playlist")
+            delete_playlist "$2"
             ;;
         "help"|"-h"|"--help"|"")
             show_usage
