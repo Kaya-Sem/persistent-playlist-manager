@@ -35,18 +35,20 @@ show_usage() {
     echo "Usage: $(basename "$0") <command> [options]"
     echo ""
     echo "Commands:"
-    echo "  list-playlists                 - List all playlists"
-    echo "  list-songs <playlist_name>     - List songs in a playlist"
+    echo "  list                           - List all playlists"
+    echo "  tracks <playlist_name>         - List songs in a playlist"
     echo "  add-songs <playlist_name> <song1> [song2] ... - Add songs to a playlist"
     echo "  remove-songs <playlist_name> <song1> [song2] ... - Remove songs from a playlist"
-    echo "  create-playlist <playlist_name> - Create a new playlist"
+    echo "  create [playlist1] [playlist2] ... - Create new playlists"
     echo "  delete-playlist <playlist_name> - Delete a playlist"
     echo ""
     echo "Examples:"
-    echo "  $(basename "$0") list-playlists"
-    echo "  $(basename "$0") list-songs 'My Favorites'"
+    echo "  $(basename "$0") list"
+    echo "  $(basename "$0") tracks 'My Favorites'"
     echo "  $(basename "$0") add-songs 'Rock Hits' /path/to/song1.flac /path/to/song2.mp3"
     echo "  $(basename "$0") remove-songs 'Rock Hits' song1.mp3 song2.mp3"
+    echo "  $(basename "$0") create 'Rock Hits' 'My Favorites'"
+    echo "  echo 'Rock Hits' | $(basename "$0") create"
 }
 
 # Check if playlist exists
@@ -164,35 +166,65 @@ list_songs() {
     fi
 }
 
-# Create a new playlist
-create_playlist() {
-    local playlist_name="$1"
+# Create new playlists
+create_playlists() {
+    local playlists=()
     
-    if [ -z "$playlist_name" ]; then
-        echo -e "${RED}Error:${NC} Playlist name is required"
-        echo "Usage: $(basename "$0") create-playlist <playlist_name>"
+    # If arguments provided, use them
+    if [ $# -gt 0 ]; then
+        playlists=("$@")
+    else
+        # Read from STDIN
+        while IFS= read -r line; do
+            # Skip empty lines and comments
+            if [[ -n "$line" && ! "$line" =~ ^[[:space:]]*# ]]; then
+                playlists+=("$line")
+            fi
+        done
+    fi
+    
+    if [ ${#playlists[@]} -eq 0 ]; then
+        echo -e "${RED}Error:${NC} No playlist names provided"
+        echo "Usage: $(basename "$0") create [playlist1] [playlist2] ..."
+        echo "       echo 'playlist1' | $(basename "$0") create"
         exit 1
     fi
     
-    if playlist_exists "$playlist_name"; then
-        echo -e "${YELLOW}Warning:${NC} Playlist '$playlist_name' already exists"
-        return
-    fi
+    local created_count=0
+    local skipped_count=0
     
-    # Create playlist directory
-    local playlist_dir="$ALBUMS_DIR/$playlist_name"
-    mkdir -p "$playlist_dir"
-    
-    # Create m3u8 file with header
-    cat > "$playlist_dir/$playlist_name.m3u8" << EOF
+    for playlist_name in "${playlists[@]}"; do
+        # Trim whitespace
+        playlist_name=$(echo "$playlist_name" | xargs)
+        
+        if [ -z "$playlist_name" ]; then
+            continue
+        fi
+        
+        if playlist_exists "$playlist_name"; then
+            echo -e "${YELLOW}⚠${NC} Playlist '$playlist_name' already exists"
+            ((skipped_count++))
+            continue
+        fi
+        
+        # Create playlist directory
+        local playlist_dir="$ALBUMS_DIR/$playlist_name"
+        mkdir -p "$playlist_dir"
+        
+        # Create m3u8 file with header
+        cat > "$playlist_dir/$playlist_name.m3u8" << EOF
 #EXTM3U
 # Created by Persistent Playlist Manager
 # Playlist: $playlist_name
 # Created: $(date)
 
 EOF
+        
+        echo -e "${GREEN}✓${NC} Playlist '$playlist_name' created successfully"
+        ((created_count++))
+    done
     
-    echo -e "${GREEN}✓${NC} Playlist '$playlist_name' created successfully"
+    echo -e "${BLUE}Summary:${NC} $created_count playlists created, $skipped_count skipped"
 }
 
 # Add songs to a playlist
@@ -214,7 +246,7 @@ add_songs() {
     
     # Create playlist if it doesn't exist
     if ! playlist_exists "$playlist_name"; then
-        create_playlist "$playlist_name"
+        create_playlists "$playlist_name"
     fi
     
     local playlist_dir="$ALBUMS_DIR/$playlist_name"
@@ -374,10 +406,10 @@ main() {
     init_directories
     
     case "${1:-}" in
-        "list-playlists")
+        "list")
             list_playlists
             ;;
-        "list-songs")
+        "tracks")
             list_songs "$2"
             ;;
         "add-songs")
@@ -388,8 +420,9 @@ main() {
             shift
             remove_songs "$@"
             ;;
-        "create-playlist")
-            create_playlist "$2"
+        "create")
+            shift
+            create_playlists "$@"
             ;;
         "delete-playlist")
             delete_playlist "$2"
