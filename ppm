@@ -5,8 +5,9 @@
 # This script manages persistent playlists using m3u8 files and hard links
 
 # Configuration
-DATA_DIR="$HOME/.persistent-playlist-manager"
+DATA_DIR="$HOME/Music/PPM"
 ALBUMS_DIR="$DATA_DIR/playlists"
+MYPLAYCOMMAND="mpv --shuffle"
 
 # Colors for output
 RED='\033[0;31m'
@@ -41,6 +42,7 @@ show_usage() {
     echo "  remove-songs <playlist_name> <song1> [song2] ... - Remove songs from a playlist"
     echo "  create [playlist1] [playlist2] ... - Create new playlists"
     echo "  delete-playlist <playlist_name> - Delete a playlist"
+    echo "  play <playlist_name>           - Play a playlist using the configured player"
     echo ""
     echo "Examples:"
     echo "  $(basename "$0") list"
@@ -50,6 +52,7 @@ show_usage() {
     echo "  $(basename "$0") create 'Rock Hits' 'My Favorites'"
     echo "  echo 'Rock Hits' | $(basename "$0") create"
     echo "  echo 'song1.mp3' | $(basename "$0") add 'Rock Hits'"
+    echo "  $(basename "$0") play 'Rock Hits'"
 }
 
 # Check if playlist exists
@@ -425,6 +428,23 @@ delete_playlist() {
     echo -e "${GREEN}✓${NC} Playlist '$playlist_name' deleted successfully"
 }
 
+# Play a playlist
+play_playlist() {
+    local playlist_name="$1"
+    if [ -z "$playlist_name" ]; then
+        echo -e "${RED}Error:${NC} Playlist name is required"
+        echo "Usage: $(basename "$0") play <playlist_name>"
+        exit 1
+    fi
+    local playlist_dir="$ALBUMS_DIR/$playlist_name"
+    local playlist_file="$playlist_dir/$playlist_name.m3u8"
+    if [ ! -f "$playlist_file" ]; then
+        echo -e "${RED}Error:${NC} Playlist '$playlist_name' not found"
+        exit 1
+    fi
+    (cd "$playlist_dir" && eval $MYPLAYCOMMAND "$playlist_name.m3u8")
+}
+
 # Main script logic
 main() {
     # Initialize directories
@@ -451,6 +471,9 @@ main() {
             ;;
         "delete-playlist")
             delete_playlist "$2"
+            ;;
+        "play")
+            play_playlist "$2"
             ;;
         "help"|"-h"|"--help"|"")
             show_usage
