@@ -1,16 +1,7 @@
 # Persistent Playlist Manager (PPM)
 
-A bash script for managing persistent music playlists (albums) using M3U8 files and hard links. This tool allows you to create, manage, and organize your music collection into stable playlists. Moving or deleting the original file does not break the playlist!
+Create robust, space-efficient music playlists using hard links. With PPM, every track you add to an album is a true, independent file entry: if you update the metadata or tags of the original, your playlist track reflects those changes instantly. Even if you move or delete the original file, your playlist copy remains playable—so your albums are safe from accidental file moves or deletions. Thanks to hard links, there’s no duplication or wasted disk space: each track exists only once on disk, no matter how many playlists it appears in. Playlists are organized as self-contained folders with standard M3U8 files, compatible with most media players, and your original files are never modified or moved by the script.
 
-## Features
-
-- **Hard Link Management**: Songs are hard-linked to avoid duplication while maintaining file integrity
-- **M3U8 Format**: Uses standard M3U8 playlist format for compatibility with media players
-- **Color-coded Output**: Easy-to-read colored terminal output
-- **Duplicate Handling**: Automatically handles duplicate filenames
-- **Audio File Validation**: Basic validation for common audio formats
-- **Flexible Input**: Supports adding/creating via arguments or stdin
-- **Shuffle Play**: Uses `mpv --shuffle` by default (configurable)
 
 ## Installation
 
