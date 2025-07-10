@@ -5,20 +5,22 @@ Create robust, space-efficient music playlists using hard links. With PPM, every
 
 ## Installation
 
-1. Download the script:
-```bash
-# Place the 'ppm' script somewhere in your PATH, e.g. ~/bin/ppm
-```
-
-2. Make it executable:
-```bash
-chmod +x ppm
-```
-
-3. Run it:
-```bash
-ppm help
-```
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/yourusername/persistent-album-creator.git
+   cd persistent-album-creator
+   ```
+2. Make the script executable:
+   ```bash
+   chmod +x ppm
+   ```
+3. Symlink the script to a directory in your PATH (e.g., ~/bin or ~/.local/bin):
+   ```bash
+   ln -s "$PWD/ppm" ~/bin/ppm
+   # or, if you use ~/.local/bin:
+   ln -s "$PWD/ppm" ~/.local/bin/ppm
+   ```
+   Make sure that directory is in your PATH. You can now run `ppm` from anywhere.
 
 ## Usage
 
@@ -41,10 +43,10 @@ ppm create "Playlist Name"
 ppm add "Playlist Name" /path/to/song1.mp3 /path/to/song2.mp3
 
 # Remove songs from a playlist
-ppm remove-songs "Playlist Name" song1.mp3 song2.mp3
+ppm remove "Playlist Name" song1.mp3 song2.mp3
 
 # Delete a playlist
-ppm delete-playlist "Playlist Name"
+ppm delete "Playlist Name"
 
 # Play a playlist (with mpv by default)
 ppm play "Playlist Name"
@@ -87,7 +89,7 @@ ppm list
 
 ```bash
 # Remove specific songs from a playlist
-ppm remove-songs "My Rock Collection" rock_song1.mp3 rock_song2.mp3
+ppm remove "My Rock Collection" rock_song1.mp3 rock_song2.mp3
 
 # Check the updated playlist
 ppm tracks "My Rock Collection"
