@@ -130,60 +130,7 @@ The script creates the following directory structure in your home directory:
     └── ...
 ```
 
-## How It Works
-
-1. **Data Storage**: All playlist data is stored in `~/Music/PPM/playlists/`
-2. **Hard Links**: When you add a song to a playlist, the script creates a hard link to the original file in the playlist directory
-3. **M3U8 Format**: Each playlist is stored as an M3U8 playlist file with proper headers
-4. **Duplicate Handling**: If multiple songs have the same filename, the script automatically renames them (e.g., `song.mp3`, `song_1.mp3`, `song_2.mp3`)
-
-## Supported Audio Formats
-
-The script recognizes these common audio file extensions:
-- MP3 (.mp3)
-- M4A (.m4a)
-- FLAC (.flac)
-- WAV (.wav)
-- OGG (.ogg)
-- AAC (.aac)
-- WMA (.wma)
-
-Other file types will work but may show a warning.
-
-## Benefits
-
-- **No Duplication**: Hard links ensure no disk space is wasted
-- **Persistent**: Playlists survive system reboots and script updates
-- **Compatible**: M3U8 format works with most media players
-- **Safe**: Original files are never modified or moved
-- **Organized**: Each playlist is a self-contained folder
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Permission Denied**: Make sure the script is executable:
-   ```bash
-   chmod +x ppm
-   ```
-
-2. **Song Not Found**: Ensure the file path is correct and the file exists:
-   ```bash
-   ls -la /path/to/your/song.mp3
-   ```
-
-3. **Playlist Not Found**: Check if the playlist exists:
-   ```bash
-   ./ppm list
-   ```
-
-### Data Recovery
-
-If you need to access your playlists directly:
-- Playlist folders: `~/Music/PPM/playlists/`
-- Each folder contains the `.m3u8` file and hard links to songs
-
-### Vim Integration
+### Play tracks in Vim
 
 With this keybind, you can play tracks straight from vim/neovim
 with mpv. You can change mpv with your own program.
@@ -194,14 +141,3 @@ vim.keymap.set('n', '<F6>', function()
   vim.fn.jobstart({'mpv', line}, {detach = true})
 end, { noremap = true, silent = true })
 ```
-
-## Technical Details
-
-- **Shell**: Bash 4.0+
-- **Dependencies**: Standard Unix tools (grep, sed, ln, etc.)
-- **File System**: Requires a filesystem that supports hard links
-- **Permissions**: Requires read access to source files and write access to `~/Music/PPM/`
-
-## License
-
-This script is provided as-is for personal use. Feel free to modify and distribute as needed. 
