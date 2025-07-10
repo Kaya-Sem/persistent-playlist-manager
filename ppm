@@ -20,26 +20,29 @@ init_directories() {
 
 # Display usage information
 show_usage() {
-    echo "Usage: $(basename "$0") <command> [options]" >&2
-    echo "" >&2
-    echo "Commands:" >&2
-    echo "  list                           - List all playlists" >&2
-    echo "  tracks <playlist_name>         - List songs in a playlist" >&2
-    echo "  add <playlist_name> [song1] [song2] ... - Add songs to a playlist" >&2
-    echo "  remove-songs <playlist_name> <song1> [song2] ... - Remove songs from a playlist" >&2
-    echo "  create [playlist1] [playlist2] ... - Create new playlists" >&2
-    echo "  delete-playlist <playlist_name> - Delete a playlist" >&2
-    echo "  play <playlist_name>           - Play a playlist using the configured player" >&2
-    echo "" >&2
-    echo "Examples:" >&2
-    echo "  $(basename "$0") list" >&2
-    echo "  $(basename "$0") tracks 'My Favorites'" >&2
-    echo "  $(basename "$0") add 'Rock Hits' /path/to/song1.flac /path/to/song2.mp3" >&2
-    echo "  $(basename "$0") remove-songs 'Rock Hits' song1.mp3 song2.mp3" >&2
-    echo "  $(basename "$0") create 'Rock Hits' 'My Favorites'" >&2
-    echo "  echo 'Rock Hits' | $(basename "$0") create" >&2
-    echo "  echo 'song1.mp3' | $(basename "$0") add 'Rock Hits'" >&2
-    echo "  $(basename "$0") play 'Rock Hits'" >&2
+    local script_name="$(basename "$0")"
+    cat >&2 << EOF
+Usage: $script_name <command> [options]
+
+Commands:
+  list                           - List all playlists
+  tracks <playlist_name>         - List songs in a playlist
+  add <playlist_name> [song1] [song2] ... - Add songs to a playlist
+  remove-songs <playlist_name> <song1> [song2] ... - Remove songs from a playlist
+  create [playlist1] [playlist2] ... - Create new playlists
+  delete-playlist <playlist_name> - Delete a playlist
+  play <playlist_name>           - Play a playlist using the configured player
+
+Examples:
+  $script_name list
+  $script_name tracks 'My Favorites'
+  $script_name add 'Rock Hits' /path/to/song1.flac /path/to/song2.mp3
+  $script_name remove-songs 'Rock Hits' song1.mp3 song2.mp3
+  $script_name create 'Rock Hits' 'My Favorites'
+  echo 'Rock Hits' | $script_name create
+  echo 'song1.mp3' | $script_name add 'Rock Hits'
+  $script_name play 'Rock Hits'
+EOF
 }
 
 # Check if playlist exists
@@ -96,10 +99,8 @@ validate_song_file() {
 
 # List all playlists
 list_playlists() {
-    echo -e "${BLUE}Available Playlists:${NC}"
-    
     if [ ! -d "$ALBUMS_DIR" ] || [ -z "$(ls -A "$ALBUMS_DIR" 2>/dev/null)" ]; then
-        echo "No playlists found."
+        echo "No playlists found." >&2
         return
     fi
     
@@ -110,7 +111,7 @@ list_playlists() {
             local playlist_file="$playlist_dir$playlist_name.m3u8"
             if [ -f "$playlist_file" ]; then
                 local song_count=$(grep -c "^#EXTINF:" "$playlist_file" 2>/dev/null)
-                echo -e "  ${GREEN}$playlist_name${NC} ($song_count songs)"
+                echo -e "$playlist_name ($song_count tracks)"
                 ((count++))
             fi
         fi
