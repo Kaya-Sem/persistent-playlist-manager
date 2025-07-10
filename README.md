@@ -1,31 +1,32 @@
-# Persistent Album Creator
+# Persistent Playlist Manager (PPM)
 
-A bash script for managing persistent music albums using M3U8 files and hard links. This tool allows you to create, manage, and organize your music collection into albums that persist across sessions.
+A bash script for managing persistent music playlists (albums) using M3U8 files and hard links. This tool allows you to create, manage, and organize your music collection into stable playlists. Moving or deleting the original file does not break the playlist!
 
 ## Features
 
-- **Persistent Storage**: Albums are stored in your home directory (`~/.album-manager/`)
 - **Hard Link Management**: Songs are hard-linked to avoid duplication while maintaining file integrity
 - **M3U8 Format**: Uses standard M3U8 playlist format for compatibility with media players
 - **Color-coded Output**: Easy-to-read colored terminal output
 - **Duplicate Handling**: Automatically handles duplicate filenames
 - **Audio File Validation**: Basic validation for common audio formats
+- **Flexible Input**: Supports adding/creating via arguments or stdin
+- **Shuffle Play**: Uses `mpv --shuffle` by default (configurable)
 
 ## Installation
 
 1. Download the script:
 ```bash
-# Clone or download the album-manager.sh file
+# Place the 'ppm' script somewhere in your PATH, e.g. ~/bin/ppm
 ```
 
 2. Make it executable:
 ```bash
-chmod +x album-manager.sh
+chmod +x ppm
 ```
 
 3. Run it:
 ```bash
-./album-manager.sh help
+ppm help
 ```
 
 ## Usage
@@ -34,70 +35,81 @@ chmod +x album-manager.sh
 
 ```bash
 # Show help
-./album-manager.sh help
+ppm help
 
-# List all albums
-./album-manager.sh list-albums
+# List all playlists
+ppm list
 
-# List songs in an album
-./album-manager.sh list-songs "Album Name"
+# List songs in a playlist
+ppm tracks "Playlist Name"
 
-# Create a new album
-./album-manager.sh create-album "Album Name"
+# Create a new playlist
+ppm create "Playlist Name"
 
-# Add songs to an album
-./album-manager.sh add-songs "Album Name" /path/to/song1.mp3 /path/to/song2.mp3
+# Add songs to a playlist
+ppm add "Playlist Name" /path/to/song1.mp3 /path/to/song2.mp3
 
-# Remove songs from an album
-./album-manager.sh remove-songs "Album Name" song1.mp3 song2.mp3
+# Remove songs from a playlist
+ppm remove-songs "Playlist Name" song1.mp3 song2.mp3
 
-# Delete an album
-./album-manager.sh delete-album "Album Name"
+# Delete a playlist
+ppm delete-playlist "Playlist Name"
+
+# Play a playlist (with mpv by default)
+ppm play "Playlist Name"
 ```
 
 ### Examples
 
-#### Creating and Populating an Album
+#### Creating and Populating a Playlist
 
 ```bash
-# Create a new album
-./album-manager.sh create-album "My Rock Collection"
+# Create a new playlist
+ppm create "My Rock Collection"
 
-# Add songs to the album
-./album-manager.sh add-songs "My Rock Collection" \
+# Add songs to the playlist
+ppm add "My Rock Collection" \
     /home/user/Music/rock_song1.mp3 \
     /home/user/Music/rock_song2.mp3 \
     /home/user/Music/rock_song3.mp3
 
-# List the songs in the album
-./album-manager.sh list-songs "My Rock Collection"
+# List the songs in the playlist
+ppm tracks "My Rock Collection"
 ```
 
-#### Managing Multiple Albums
+#### Managing Multiple Playlists
 
 ```bash
-# Create different genre albums
-./album-manager.sh create-album "Jazz Classics"
-./album-manager.sh create-album "Electronic Beats"
-./album-manager.sh create-album "Classical Masterpieces"
+# Create different genre playlists
+ppm create "Jazz Classics" "Electronic Beats" "Classical Masterpieces"
 
-# Add songs to each album
-./album-manager.sh add-songs "Jazz Classics" /path/to/jazz/*.mp3
-./album-manager.sh add-songs "Electronic Beats" /path/to/electronic/*.mp3
-./album-manager.sh add-songs "Classical Masterpieces" /path/to/classical/*.mp3
+# Add songs to each playlist
+ppm add "Jazz Classics" /path/to/jazz/*.mp3
+ppm add "Electronic Beats" /path/to/electronic/*.mp3
+ppm add "Classical Masterpieces" /path/to/classical/*.mp3
 
-# List all albums
-./album-manager.sh list-albums
+# List all playlists
+ppm list
 ```
 
 #### Removing Songs
 
 ```bash
-# Remove specific songs from an album
-./album-manager.sh remove-songs "My Rock Collection" rock_song1.mp3 rock_song2.mp3
+# Remove specific songs from a playlist
+ppm remove-songs "My Rock Collection" rock_song1.mp3 rock_song2.mp3
 
-# Check the updated album
-./album-manager.sh list-songs "My Rock Collection"
+# Check the updated playlist
+ppm tracks "My Rock Collection"
+```
+
+#### Using stdin for batch operations
+
+```bash
+# Create playlists from a list
+cat playlists.txt | ppm create
+
+# Add songs from a list
+cat songs.txt | ppm add "My Rock Collection"
 ```
 
 ## File Structure
@@ -105,22 +117,24 @@ chmod +x album-manager.sh
 The script creates the following directory structure in your home directory:
 
 ```
-~/.album-manager/
-├── albums/          # M3U8 playlist files
-│   ├── Album1.m3u8
-│   ├── Album2.m3u8
-│   └── ...
-└── songs/           # Hard-linked song files
-    ├── song1.mp3
-    ├── song2.mp3
+~/Music/PPM/
+└── playlists/
+    ├── Playlist1/
+    │   ├── Playlist1.m3u8
+    │   ├── song1.mp3 (hard link)
+    │   ├── song2.mp3 (hard link)
+    │   └── ...
+    ├── Playlist2/
+    │   ├── Playlist2.m3u8
+    │   └── ...
     └── ...
 ```
 
 ## How It Works
 
-1. **Data Storage**: All album data is stored in `~/.album-manager/`
-2. **Hard Links**: When you add a song to an album, the script creates a hard link to the original file in the songs directory
-3. **M3U8 Format**: Each album is stored as an M3U8 playlist file with proper headers
+1. **Data Storage**: All playlist data is stored in `~/Music/PPM/playlists/`
+2. **Hard Links**: When you add a song to a playlist, the script creates a hard link to the original file in the playlist directory
+3. **M3U8 Format**: Each playlist is stored as an M3U8 playlist file with proper headers
 4. **Duplicate Handling**: If multiple songs have the same filename, the script automatically renames them (e.g., `song.mp3`, `song_1.mp3`, `song_2.mp3`)
 
 ## Supported Audio Formats
@@ -139,10 +153,10 @@ Other file types will work but may show a warning.
 ## Benefits
 
 - **No Duplication**: Hard links ensure no disk space is wasted
-- **Persistent**: Albums survive system reboots and script updates
+- **Persistent**: Playlists survive system reboots and script updates
 - **Compatible**: M3U8 format works with most media players
 - **Safe**: Original files are never modified or moved
-- **Organized**: Clear separation between albums and song storage
+- **Organized**: Each playlist is a self-contained folder
 
 ## Troubleshooting
 
@@ -150,7 +164,7 @@ Other file types will work but may show a warning.
 
 1. **Permission Denied**: Make sure the script is executable:
    ```bash
-   chmod +x album-manager.sh
+   chmod +x ppm
    ```
 
 2. **Song Not Found**: Ensure the file path is correct and the file exists:
@@ -158,23 +172,35 @@ Other file types will work but may show a warning.
    ls -la /path/to/your/song.mp3
    ```
 
-3. **Album Not Found**: Check if the album exists:
+3. **Playlist Not Found**: Check if the playlist exists:
    ```bash
-   ./album-manager.sh list-albums
+   ./ppm list
    ```
 
 ### Data Recovery
 
-If you need to access your albums directly:
-- Album files: `~/.album-manager/albums/`
-- Song links: `~/.album-manager/songs/`
+If you need to access your playlists directly:
+- Playlist folders: `~/Music/PPM/playlists/`
+- Each folder contains the `.m3u8` file and hard links to songs
+
+### Vim Integration
+
+With this keybind, you can play tracks straight from vim/neovim
+with mpv. You can change mpv with your own program.
+
+```lua
+vim.keymap.set('n', '<F6>', function()
+  local line = vim.fn.getline('.')
+  vim.fn.jobstart({'mpv', line}, {detach = true})
+end, { noremap = true, silent = true })
+```
 
 ## Technical Details
 
 - **Shell**: Bash 4.0+
 - **Dependencies**: Standard Unix tools (grep, sed, ln, etc.)
 - **File System**: Requires a filesystem that supports hard links
-- **Permissions**: Requires read access to source files and write access to `~/.album-manager/`
+- **Permissions**: Requires read access to source files and write access to `~/Music/PPM/`
 
 ## License
 
