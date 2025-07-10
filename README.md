@@ -8,7 +8,7 @@ Create robust, space-efficient music playlists using hard links. With PPM, every
 1. Clone this repository:
    ```bash
    git clone https://github.com/Kaya-Sem/persistent-playlist-manager.git
-   cd persistent-album-creator
+   cd persistent-playlist-manager
    ```
 2. Make the script executable:
    ```bash
