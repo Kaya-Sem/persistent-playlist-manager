@@ -25,22 +25,22 @@ show_usage() {
 Usage: $script_name <command> [options]
 
 Commands:
-  list                           - List all playlists
-  tracks <playlist_name>         - List songs in a playlist
-  add <playlist_name> [song1] [song2] ... - Add songs to a playlist
-  remove-songs <playlist_name> <song1> [song2] ... - Remove songs from a playlist
-  create [playlist1] [playlist2] ... - Create new playlists
-  delete-playlist <playlist_name> - Delete a playlist
-  play <playlist_name>           - Play a playlist using the configured player
+  list                                         List all playlists
+  tracks <playlist>                            List songs in a playlist
+  add <playlist> [song1] [song2] ...           Add songs to a playlist
+  remove <playlist> <song1> [song2] ...        Remove songs from a playlist
+  create [playlist1] [playlist2] ...           Create new playlists
+  delete <playlist>                            Delete a playlist
+  play <playlist>                              Play a playlist using the configured player
 
 Examples:
   $script_name list
   $script_name tracks 'My Favorites'
   $script_name add 'Rock Hits' /path/to/song1.flac /path/to/song2.mp3
-  $script_name remove-songs 'Rock Hits' song1.mp3 song2.mp3
+  $script_name remove 'Rock Hits' song1.mp3 song2.mp3
   $script_name create 'Rock Hits' 'My Favorites'
-  echo 'Rock Hits' | $script_name create
-  echo 'song1.mp3' | $script_name add 'Rock Hits'
+  $script_name create < playlist_names.txt
+  $script_name add 'Rock Hits' <<< 'song1.mp3'
   $script_name play 'Rock Hits'
 EOF
 }
@@ -312,13 +312,13 @@ remove_songs() {
     
     if [ -z "$playlist_name" ]; then
         echo -e "playlist name is required" >&2
-        echo "Usage: $(basename "$0") remove-songs <playlist_name> <song1> [song2] ..." >&2
+        echo "Usage: $(basename "$0") remove <playlist> <song1> [song2] ..." >&2
         exit 1
     fi
     
     if [ $# -eq 0 ]; then
         echo -e "at least one track is required" >&2
-        echo "Usage: $(basename "$0") remove-songs <playlist_name> <song1> [song2] ..." >&2
+        echo "Usage: $(basename "$0") remove <playlist> <song1> [song2] ..." >&2
         exit 1
     fi
     
@@ -378,7 +378,7 @@ delete_playlist() {
     
     if [ -z "$playlist_name" ]; then
         echo -e "playlist name is required" >&2
-        echo "Usage: $(basename "$0") delete-playlist <playlist_name>" >&2
+        echo "Usage: $(basename "$0") delete <playlist>" >&2
         exit 1
     fi
     
@@ -435,7 +435,7 @@ main() {
             shift
             add_songs "$@"
             ;;
-        "remove-songs")
+        "remove")
             shift
             remove_songs "$@"
             ;;
@@ -443,7 +443,7 @@ main() {
             shift
             create_playlists "$@"
             ;;
-        "delete-playlist")
+        "delete")
             delete_playlist "$2"
             ;;
         "play")
